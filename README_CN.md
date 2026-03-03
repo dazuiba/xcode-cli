@@ -2,24 +2,24 @@
 
 [English](./README.md)
 
-对 [Xcode 26.3+ 官方 MCP 工具](https://developer.apple.com/xcode/mcp/) 的 CLI + Skill 封装 — 在终端或 AI 代理中构建、诊断、测试和预览 Xcode 项目。
+对 [Xcode 26.3+ 官方 MCP 工具](https://developer.apple.com/xcode/mcp/) 的 CLI + Skill 封装：持久化 `mcp-proxy` 让「允许访问 Xcode」弹窗**每次开机只弹一次**，同时每次对话节省 **~5K tokens** 上下文。
 
 | 痛点 | 解法 |
 |------|------|
-| AI 代理调用 Xcode MCP 时 TCC 弹窗反复弹出，无法记住授权 | 持久化 `mcp-proxy` 进程，macOS 只授权一次 |
+| AI 代理调用 Xcode MCP 时权限弹窗反复弹出，无法记住授权 | 持久化 `mcp-proxy` 进程，macOS 只授权一次 |
 | MCP 工具定义（20 个 ~5K tokens）占用每次对话上下文 | 封装为 Claude Code Skill，按需加载 |
 
 ## 详细说明
 
-### 问题一：TCC 权限弹窗
+### 问题一：权限弹窗
 
-<img src="alert.jpg" width="360" alt="macOS TCC 权限弹窗：允许 Codex 访问 Xcode？">
+<img src="alert.jpg" width="360" alt="macOS 权限弹窗：允许 Codex 访问 Xcode？">
 
-使用 AI 代理（Claude Code、Codex、Cursor）调用 Xcode 26.3 MCP 工具时，macOS TCC 弹窗每隔数秒反复弹出，且因 CLI 进程 PID 不断变化而[永远无法记住授权](https://github.com/openai/codex/issues/10741)。
+使用 AI 代理（Claude Code、Codex、Cursor）调用 Xcode 26.3 MCP 工具时，macOS「允许访问 Xcode」弹窗每隔数秒反复弹出，且因 CLI 进程 PID 不断变化而[永远无法记住授权](https://github.com/openai/codex/issues/10741)。
 
 ### 根本原因
 
-每次 AI 代理调用 `xcrun mcpbridge` 时，macOS 看到的是一个新进程（新 PID），于是触发新的 TCC 授权弹窗。没有办法永久允许。
+每次 AI 代理调用 `xcrun mcpbridge` 时，macOS 看到的是一个新进程（新 PID），于是触发新的授权弹窗。没有办法永久允许。
 
 ### 解决方案
 
@@ -59,7 +59,7 @@ pm2 start xcode-mcp-proxy.config.cjs
 pm2 save
 ```
 
-TCC 弹窗出现时点击"允许"，此后不再弹出。
+弹窗出现时点击「允许」，此后不再弹出。
 
 ### 验证
 
@@ -178,7 +178,7 @@ AI Agent ──bash──▶ xcode-cli ──HTTP──▶ mcp-proxy ──stdio
 | 组件 | 职责 |
 |------|------|
 | `xcrun mcpbridge` | Xcode 内置 MCP server（stdio 传输） |
-| `mcp-proxy` | stdio → HTTP 桥接（端口 9876）；解决 TCC 的持久进程 |
+| `mcp-proxy` | stdio → HTTP 桥接（端口 9876）；消除权限弹窗的持久进程 |
 | `xcode-cli` | 由 [mcporter](https://github.com/steipete/mcporter) 生成的 CLI 封装，将命令行参数转为 MCP 工具调用 |
 
 ## 重新生成 CLI
