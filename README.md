@@ -50,8 +50,8 @@ uv tool install mcp-proxy   # or: pip install mcp-proxy
 npm install -g pm2
 
 # 2. Clone and install CLI
-git clone https://github.com/dazuiba/xcode-cli.git
-cd xcode-cli
+git clone https://github.com/dazuiba/xcode-cli-skill.git
+cd xcode-cli-skill
 npm link
 
 # 3. Start the persistent proxy

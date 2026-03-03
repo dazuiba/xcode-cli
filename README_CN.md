@@ -50,8 +50,8 @@ uv tool install mcp-proxy   # 或: pip install mcp-proxy
 npm install -g pm2
 
 # 2. 克隆并安装 CLI
-git clone https://github.com/dazuiba/xcode-cli.git
-cd xcode-cli
+git clone https://github.com/dazuiba/xcode-cli-skill.git
+cd xcode-cli-skill
 npm link
 
 # 3. 启动持久化代理
