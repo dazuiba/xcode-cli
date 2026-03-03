@@ -1,13 +1,23 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "xcode-tools",
+  "description": "Xcode MCP tools for Claude Code",
   "owner": {
     "name": "dazuiba"
   },
   "plugins": [
     {
       "name": "xcode-cli",
-      "source": ".",
-      "description": "CLI wrapper for Xcode MCP tools — build, diagnose, test, and preview Xcode projects"
+      "description": "CLI wrapper for Xcode MCP tools — build, diagnose, test, and preview Xcode projects",
+      "version": "0.1.0",
+      "author": {
+        "name": "dazuiba"
+      },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/dazuiba/xcode-cli.git"
+      },
+      "homepage": "https://github.com/dazuiba/xcode-cli"
     }
   ]
 }
