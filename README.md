@@ -2,7 +2,7 @@
 
 [中文文档](./README_CN.md)
 
-CLI + Skill wrapper for the [official Xcode 26+ MCP tools](https://developer.apple.com/xcode/mcp/) — build, diagnose, test, and preview Xcode projects from your terminal or AI agent.
+CLI + Skill wrapper for the [official Xcode 26.3+ MCP tools](https://developer.apple.com/xcode/mcp/) — build, diagnose, test, and preview Xcode projects from your terminal or AI agent.
 
 | Pain point | Solution |
 |------------|----------|
@@ -15,7 +15,7 @@ CLI + Skill wrapper for the [official Xcode 26+ MCP tools](https://developer.app
 
 <img src="alert.jpg" width="360" alt="macOS TCC permission dialog: Allow Codex to access Xcode?">
 
-When AI agents (Claude Code, Codex, Cursor) call Xcode 26 MCP tools, macOS TCC dialogs pop up every few seconds — and because CLI agents spawn new processes with different PIDs, macOS [never remembers your choice](https://github.com/openai/codex/issues/10741).
+When AI agents (Claude Code, Codex, Cursor) call Xcode 26.3 MCP tools, macOS TCC dialogs pop up every few seconds — and because CLI agents spawn new processes with different PIDs, macOS [never remembers your choice](https://github.com/openai/codex/issues/10741).
 
 ### Root Cause
 
@@ -37,7 +37,7 @@ MCP tool definitions (~5K tokens for 20 tools) load into **every conversation**,
 
 ## Prerequisites
 
-- **macOS** with **Xcode 26+** (ships `xcrun mcpbridge`)
+- **macOS** with **Xcode 26.3+** (ships `xcrun mcpbridge`)
 - **Node.js** 18+
 - **[mcp-proxy](https://github.com/sparfenyuk/mcp-proxy)** (bridges stdio MCP to HTTP)
 - **pm2** (keeps mcp-proxy alive)

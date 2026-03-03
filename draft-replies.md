@@ -94,7 +94,7 @@ Bonus: for Claude Code users, it includes a Skill file that keeps ~5K tokens of 
 
 **Body:**
 
-If you've tried using Claude Code, Codex, Cursor, or Gemini CLI with Xcode 26's MCP tools, you've probably hit this:
+If you've tried using Claude Code, Codex, Cursor, or Gemini CLI with Xcode 26.3's MCP tools, you've probably hit this:
 
 > "Allow X to access Xcode?" — every 3 seconds, forever.
 
@@ -133,7 +133,7 @@ Happy to hear feedback. MIT licensed.
 
 **Body:**
 
-Two problems when using Claude Code with Xcode 26's MCP tools:
+Two problems when using Claude Code with Xcode 26.3's MCP tools:
 
 1. **TCC popup hell** — macOS asks "Allow Claude to access Xcode?" on every single tool call because each invocation spawns a new PID
 2. **5K wasted tokens** — 20 MCP tool definitions load into every conversation, whether you use them or not
