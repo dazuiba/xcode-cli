@@ -1,4 +1,4 @@
-# xcode-cli
+# xcode-cli-skill
 
 [English](./README.md)
 
