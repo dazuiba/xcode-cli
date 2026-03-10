@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.8 – 2026-03-10 – fix: add timestamps to stderr logs
+
+### Fixed
+- All stderr log lines now include ISO 8601 timestamps (e.g. `[2026-03-10T12:00:00.000Z] MCP bridge listening on …`)
+
+---
+
 ## [e7b2bef] – 2026-03-10 – fix: resolve "No tab identifier found"
 
 ### Fixed

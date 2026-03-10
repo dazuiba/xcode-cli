@@ -1,3 +1,7 @@
+function log(msg: string) {
+  console.error(`[${new Date().toISOString()}] ${msg}`);
+}
+
 import http from 'node:http';
 import { URL } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -49,7 +53,7 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   });
 
   upstream.onerror = (error) => {
-    console.error(`Upstream stdio MCP error: ${error.message}`);
+    log(`Upstream stdio MCP error: ${error.message}`);
   };
 
   try {
@@ -193,8 +197,8 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
     server.listen(options.port, options.host, () => {
-      console.error(`MCP bridge listening on ${endpoint.toString()}`);
-      console.error('Upstream stdio: xcrun mcpbridge');
+      log(`MCP bridge listening on ${endpoint.toString()}`);
+      log('Upstream stdio: xcrun mcpbridge');
       resolve();
     });
   });
