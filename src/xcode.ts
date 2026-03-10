@@ -1,7 +1,11 @@
 #!/usr/bin/env node
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Command } from 'commander';
 import { createRuntime, createServerProxy, describeConnectionIssue } from 'mcporter';
 import type { CallResult } from 'mcporter';
+
+const execFileAsync = promisify(execFile);
 import { printResult, unwrapResult } from './xcode-output.ts';
 import { copyPreviewToOutput, findPreviewPath } from './xcode-preview.ts';
 import { parseTestSpecifier, type ParsedTestSpecifier } from './xcode-test.ts';
@@ -464,8 +468,24 @@ program
   });
 
 program
-  .command('run <toolName>')
-  .description('Run any MCP tool directly with JSON args')
+  .command('run')
+  .description('Build and run the active scheme (like Cmd+R in Xcode)')
+  .action(async () => {
+    await triggerXcodeKeystroke('r', 'command down');
+    console.log('Run triggered');
+  });
+
+program
+  .command('run-without-build')
+  .description('Run without building the active scheme (like Ctrl+Cmd+R in Xcode)')
+  .action(async () => {
+    await triggerXcodeKeystroke('r', 'command down, control down');
+    console.log('Run Without Build triggered');
+  });
+
+program
+  .command('call <toolName>')
+  .description('Call any MCP tool directly with JSON args')
   .requiredOption('--args <json>', 'JSON object with tool arguments')
   .action(async (toolName: string, options: { args: string }) => {
     await withClient(async (ctx) => {
@@ -479,6 +499,8 @@ applyCommandOrder(program, [
   'status',
   'build',
   'build-log',
+  'run',
+  'run-without-build',
   'test',
   'issues',
   'file-issues',
@@ -496,7 +518,7 @@ applyCommandOrder(program, [
   'snippet',
   'doc',
   'tools',
-  'run',
+  'call',
 ]);
 
 program.parseAsync(process.argv).catch((error) => {
@@ -512,6 +534,16 @@ program.parseAsync(process.argv).catch((error) => {
   }
   process.exit(1);
 });
+
+async function triggerXcodeKeystroke(key: string, modifiers: string): Promise<void> {
+  const script = `tell application "Xcode" to activate\ntell application "System Events"\n  tell process "Xcode"\n    keystroke "${key}" using {${modifiers}}\n  end tell\nend tell`;
+  try {
+    await execFileAsync('osascript', ['-e', script]);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to trigger Xcode action: ${message}\nEnsure Xcode is open and Accessibility access is granted to Terminal/iTerm.`);
+  }
+}
 
 async function withClient(handler: (ctx: ClientContext) => Promise<void>) {
   const root = program.opts<CommonOpts>();

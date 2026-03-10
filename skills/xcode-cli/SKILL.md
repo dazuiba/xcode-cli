@@ -19,7 +19,7 @@ Interact with Xcode through the `xcode-cli` CLI backed by the Xcode MCP bridge.
 
 ## Commands
 
-All commands: `xcode-cli <cmd> [args]`. Use `--tab <tabIdentifier>` if multiple Xcode tabs are open; auto-detected when only one tab is open. Add `--json` for JSON output.
+All commands: `xcode-cli <cmd> [args]`. **Always use `--tab <tabIdentifier>`** — run `xcode-cli windows` first to get the tabIdentifier, then pass it to every subsequent command. Add `--json` for JSON output.
 
 | Command | Usage | Notes |
 |---------|-------|-------|
@@ -27,6 +27,8 @@ All commands: `xcode-cli <cmd> [args]`. Use `--tab <tabIdentifier>` if multiple 
 | `status` | `status` | Quick project status (windows + issues) |
 | `build` | `build` | Build project |
 | `build-log` | `build-log --severity error` | View build errors |
+| `run` | `run` | Build and run active scheme (like Cmd+R) |
+| `run-without-build` | `run-without-build` | Run without building (like Ctrl+Cmd+R) |
 | `issues` | `issues --severity error` | Navigator issues |
 | `file-issues` | `file-issues "MyApp/Sources/MyFile.swift"` | Single-file diagnostics, no full build |
 | `test` | `test all` / `test list [--json]` / `test some "Target::Class/method()"` | Run/list tests |
@@ -47,5 +49,6 @@ All commands: `xcode-cli <cmd> [args]`. Use `--tab <tabIdentifier>` if multiple 
 
 - File paths are relative to the Xcode project structure, not absolute filesystem paths.
 - If the bridge is not responding: `xcode-cli-ctl status` then `xcode-cli-ctl uninstall && xcode-cli-ctl install`.
-- Use `xcode-cli run <toolName> --args '{"key":"value"}'` to invoke any MCP tool directly.
+- Use `xcode-cli call <toolName> --args '{"key":"value"}'` to invoke any MCP tool directly.
+- `run` and `run-without-build` use AppleScript to send keyboard shortcuts to Xcode; ensure Accessibility access is granted to Terminal/iTerm in System Settings → Privacy & Security → Accessibility.
 - Testing: use `targetName` + `identifier` from `test list --json` for exact test targeting. `test some` only runs tests from the active scheme's active test plan — switch scheme in Xcode if a target is missing.
