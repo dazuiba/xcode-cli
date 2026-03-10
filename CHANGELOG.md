@@ -1,21 +1,29 @@
 # Changelog
 
-## [Unreleased]
+## [e7b2bef] – 2026-03-10 – fix: resolve "No tab identifier found"
+
+### Fixed
+- `--tab <tabIdentifier>` is now mandatory for all commands; SKILL.md instructs users to run `windows` first to obtain the identifier
 
 ### Added
 - `run` command: build and run the active scheme via AppleScript (like Cmd+R in Xcode)
 - `run-without-build` command: run without building via AppleScript (like Ctrl+Cmd+R in Xcode)
-- `call` command: invoke any MCP tool directly with JSON args (replaces the old `run` command)
-- `triggerXcodeKeystroke` helper using `osascript` for AppleScript-based Xcode control
-- Skill installation now uses a symlink instead of a file copy, so upgrades are reflected automatically
-- Install script now links SKILL.md to `~/.claude2/skills/xcode-cli` in addition to Claude and Codex dirs
+- `call` command: invoke any MCP tool directly with JSON args (replaces the old ambiguous `run <toolName>`)
+
+### Changed
+- SKILL.md: added `run`, `run-without-build`, corrected `call` command reference, added Accessibility grant note
+
+---
+
+## [db14b86] – 2026-03-10 – feat: upgrade bridge to xcode-cli@1.0.5, symlink skill install
+
+### Added
+- Skill installation now uses a symlink so upgrades are reflected automatically without reinstalling
+- Install script links SKILL.md to `~/.claude2/skills/xcode-cli` in addition to Claude and Codex dirs
 
 ### Changed
 - Regenerated `mcpbridge.ts` from `xcode-mcp@1.0.0` (node/rolldown) to `xcode-cli@1.0.5` (bun)
-- SKILL.md: `--tab <tabIdentifier>` is now mandatory; instruct users to run `windows` first to obtain it
-- SKILL.md: added `run` and `run-without-build` to the command table with AppleScript notes
-- SKILL.md: fixed `call` command reference (was incorrectly documented as `run`)
-- Skill install uses `lstat` (works for symlinks) instead of `access` for existence checks
+- Skill install uses `lstat` instead of `access` to correctly detect existing symlinks
 
 ---
 
