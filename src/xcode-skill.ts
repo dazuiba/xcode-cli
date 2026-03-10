@@ -23,8 +23,18 @@ export async function installSkill(rootDir: string): Promise<void> {
   const targetFile = path.join(targetDir, SKILL_FILENAME);
 
   await fs.mkdir(targetDir, { recursive: true });
-  await fs.copyFile(source, targetFile);
-  console.log(`Installed skill: ${targetFile}`);
+
+  // Remove existing file or symlink so we can (re)create the symlink cleanly.
+  try {
+    await fs.unlink(targetFile);
+  } catch {
+    // ignore — file didn't exist yet
+  }
+
+  // Use a symlink so the skill automatically reflects package upgrades
+  // without requiring the user to re-run `skill install`.
+  await fs.symlink(source, targetFile);
+  console.log(`Installed skill: ${targetFile} -> ${source}`);
 }
 
 export async function uninstallSkill(rootDir: string): Promise<void> {
@@ -32,7 +42,8 @@ export async function uninstallSkill(rootDir: string): Promise<void> {
   const targetFile = path.join(targetDir, SKILL_FILENAME);
 
   try {
-    await fs.access(targetFile);
+    // lstat works for both symlinks and regular files
+    await fs.lstat(targetFile);
   } catch {
     console.log(`Skill not found at ${targetFile}`);
     return;
