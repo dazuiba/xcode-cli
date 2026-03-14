@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.9 – 2026-03-15 – fix: auto-reconnect when Xcode restarts
+
+### Fixed
+- Bridge now auto-reconnects to `xcrun mcpbridge` when the upstream connection drops (e.g. Xcode restart), with exponential backoff (1s → 30s)
+- Health endpoint `/health` now reflects actual upstream state (`connected`, `reconnecting`) instead of always returning `ok: true`
+- New session requests return HTTP 503 with "Reconnecting to Xcode..." during reconnection instead of generic `-32603`
+
+---
+
 ## 1.0.8 – 2026-03-10 – fix: add timestamps to stderr logs
 
 ### Fixed

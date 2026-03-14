@@ -36,43 +36,9 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   }
 
   const endpoint = new URL(`http://${options.host}:${options.port}${normalizePath(options.path)}`);
-  const upstream = new Client(
-    {
-      name: BRIDGE_NAME,
-      version: BRIDGE_VERSION,
-    },
-    {
-      capabilities: {},
-    },
-  );
-  const upstreamTransport = new StdioClientTransport({
-    command: 'xcrun',
-    args: ['mcpbridge'],
-    env: buildEnv(),
-    stderr: 'inherit',
-  });
 
-  upstream.onerror = (error) => {
-    log(`Upstream stdio MCP error: ${error.message}`);
-  };
-
-  try {
-    await upstream.connect(upstreamTransport);
-  } catch (error) {
-    await upstream.close().catch(() => undefined);
-    await upstreamTransport.close().catch(() => undefined);
-    const details = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      [
-        'Unable to connect to Xcode via `xcrun mcpbridge`.',
-        'Check the following and try again:',
-        '1) Xcode 26.3 or later is installed.',
-        '2) Xcode is open.',
-        '3) `xcode-select -p` points to your Xcode developer directory.',
-        `Original error: ${details}`,
-      ].join('\n'),
-    );
-  }
+  const state: UpstreamState = { client: null, reconnecting: false };
+  await connectUpstream(state);
 
   const sessions = new Map<string, TransportSession>();
   const server = http.createServer(async (req, res) => {
@@ -85,8 +51,14 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
 
       const requestUrl = new URL(req.url, endpoint);
       if (requestUrl.pathname === '/health') {
+        const connected = state.client !== null;
         res.setHeader('content-type', 'application/json');
-        res.end(JSON.stringify({ ok: true, endpoint: endpoint.toString() }));
+        res.end(JSON.stringify({
+          ok: connected,
+          connected,
+          reconnecting: state.reconnecting,
+          endpoint: endpoint.toString(),
+        }));
         return;
       }
 
@@ -113,6 +85,20 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
         }
 
         if (!sessionId && isInitializeRequest(body)) {
+          if (!state.client) {
+            const status = state.reconnecting ? 'Reconnecting to Xcode...' : 'Not connected';
+            res.statusCode = 503;
+            res.setHeader('content-type', 'application/json');
+            res.end(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                error: { code: -32603, message: status },
+                id: null,
+              }),
+            );
+            return;
+          }
+
           let mcpServer: Server;
           const transport = new StreamableHTTPServerTransport({
             sessionIdGenerator: () => randomUUID(),
@@ -128,7 +114,7 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
             sessions.delete(closedSessionId);
           };
 
-          mcpServer = createSessionServer(upstream);
+          mcpServer = createSessionServer(state);
           await mcpServer.connect(transport);
           await transport.handleRequest(req, res, body);
           return;
@@ -175,13 +161,16 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   });
 
   const cleanup = async () => {
+    state.reconnecting = false;
     for (const { server: sessionServer } of sessions.values()) {
       await sessionServer.close().catch(() => undefined);
     }
     sessions.clear();
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await upstream.close().catch(() => undefined);
-    await upstreamTransport.close().catch(() => undefined);
+    if (state.client) {
+      await state.client.close().catch(() => undefined);
+      state.client = null;
+    }
   };
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
@@ -204,7 +193,88 @@ export async function startMcpBridge(options: McpBridgeStartOptions): Promise<vo
   });
 }
 
-function createSessionServer(upstream: Client): Server {
+type UpstreamState = {
+  client: Client | null;
+  reconnecting: boolean;
+};
+
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 15000, 30000];
+
+async function connectUpstream(state: UpstreamState): Promise<void> {
+  const client = new Client(
+    { name: BRIDGE_NAME, version: BRIDGE_VERSION },
+    { capabilities: {} },
+  );
+
+  const transport = new StdioClientTransport({
+    command: 'xcrun',
+    args: ['mcpbridge'],
+    env: buildEnv(),
+    stderr: 'inherit',
+  });
+
+  client.onerror = (error) => {
+    log(`Upstream MCP error: ${error.message}`);
+  };
+
+  transport.onclose = () => {
+    if (state.client === client) {
+      log('Upstream connection closed. Scheduling reconnect...');
+      state.client = null;
+      scheduleReconnect(state);
+    }
+  };
+
+  try {
+    await client.connect(transport);
+    state.client = client;
+    state.reconnecting = false;
+    log('Upstream connected to Xcode via xcrun mcpbridge');
+  } catch (error) {
+    await client.close().catch(() => undefined);
+    await transport.close().catch(() => undefined);
+    const details = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      [
+        'Unable to connect to Xcode via `xcrun mcpbridge`.',
+        'Check the following and try again:',
+        '1) Xcode 26.3 or later is installed.',
+        '2) Xcode is open.',
+        '3) `xcode-select -p` points to your Xcode developer directory.',
+        `Original error: ${details}`,
+      ].join('\n'),
+    );
+  }
+}
+
+function scheduleReconnect(state: UpstreamState, attempt = 0): void {
+  if (state.client) return; // already reconnected
+  state.reconnecting = true;
+  const delay = RECONNECT_DELAYS_MS[Math.min(attempt, RECONNECT_DELAYS_MS.length - 1)];
+  log(`Reconnect attempt ${attempt + 1} in ${delay}ms...`);
+
+  setTimeout(async () => {
+    if (state.client) return; // reconnected while waiting
+    try {
+      await connectUpstream(state);
+      log('Reconnected to Xcode successfully');
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log(`Reconnect attempt ${attempt + 1} failed: ${msg}`);
+      scheduleReconnect(state, attempt + 1);
+    }
+  }, delay);
+}
+
+function getUpstreamClient(state: UpstreamState): Client {
+  if (!state.client) {
+    const status = state.reconnecting ? 'Reconnecting to Xcode...' : 'Not connected to Xcode';
+    throw new Error(status);
+  }
+  return state.client;
+}
+
+function createSessionServer(state: UpstreamState): Server {
   const server = new Server(
     {
       name: BRIDGE_NAME,
@@ -220,12 +290,14 @@ function createSessionServer(upstream: Client): Server {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async (request) => {
-    return await upstream.listTools(request.params);
+    const client = getUpstreamClient(state);
+    return await client.listTools(request.params);
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const params = await normalizeRunSomeTestsCall(request.params, upstream);
-    return await upstream.callTool(params);
+    const client = getUpstreamClient(state);
+    const params = await normalizeRunSomeTestsCall(request.params, client);
+    return await client.callTool(params);
   });
 
   return server;
