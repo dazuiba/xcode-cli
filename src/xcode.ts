@@ -433,12 +433,13 @@ program
 program
   .command('snippet <sourceFilePath> <codeSnippet>')
   .description('Execute a Swift snippet in the context of a source file')
+  .option('--purpose <description>', 'Short description of why this snippet is being run', 'Execute code snippet')
   .option('--exec-timeout <seconds>', 'Snippet execution timeout seconds', '120')
   .action(
     async (
       sourceFilePath: string,
       codeSnippet: string,
-      options: { execTimeout: string },
+      options: { purpose: string; execTimeout: string },
     ) => {
       await withClient(async (ctx) => {
         const tabIdentifier = await resolveTabIdentifier(ctx, true);
@@ -446,6 +447,7 @@ program
           tabIdentifier,
           sourceFilePath,
           codeSnippet,
+          purpose: options.purpose,
           timeout: Number(options.execTimeout),
         });
         printResult(result, ctx.output);
