@@ -2,6 +2,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
+import { dirname, resolve } from 'node:path';
 import { Command } from 'commander';
 import { createRuntime, createServerProxy, describeConnectionIssue } from 'mcporter';
 import type { CallResult } from 'mcporter';
@@ -33,15 +34,20 @@ program.addHelpText(
   'after',
   `
 Tab selection:
-  Commands that require tabIdentifier will use --tab (or XCODE_TAB_ID) when provided.
-  If neither is provided and exactly one Xcode tab is open, that tabIdentifier is auto-selected.
+  When run inside a project directory, the matching Xcode tab is auto-selected
+  by comparing the working directory against each tab's workspacePath.
+  Use --tab <id> (or XCODE_TAB_ID) to override. If no match is found and
+  exactly one Xcode tab is open, it is auto-selected.
 
 Examples:
-  # Discover tabIdentifier values
-  xcode-cli windows
+  # Auto-match: run from the project directory
+  cd ~/MyProject && xcode-cli build
 
-  # Build using a known Xcode tab identifier
+  # Explicit tab identifier
   xcode-cli --tab <tabIdentifier> build
+
+  # Discover available tabs
+  xcode-cli windows
 
 Setup & service management:
   Use xcode-cli-ctl to manage the bridge service and skills.
@@ -630,13 +636,22 @@ async function resolveTabIdentifier(
   }
   if (autoDiscover) {
     const windows = windowsResult ?? (await ctx.call('XcodeListWindows'));
-    const discoveredTabIds = listTabIdentifiers(unwrapResult(windows));
+    const data = unwrapResult(windows);
+
+    // Try matching by current working directory
+    const cwdMatch = matchTabByCwd(listTabWorkspacePairs(data), process.cwd());
+    if (cwdMatch) {
+      return cwdMatch;
+    }
+
+    // Fall back to auto-select when exactly one tab is open
+    const discoveredTabIds = listTabIdentifiers(data);
     if (discoveredTabIds.length === 1) {
       return discoveredTabIds[0];
     }
   }
   throw new Error(
-    'No tab identifier found. Use --tab <id> (or XCODE_TAB_ID) or run `xcode-cli windows`.',
+    'No tab identifier found. Run from a project directory, use --tab <id> (or XCODE_TAB_ID), or run `xcode-cli windows`.',
   );
 }
 
@@ -691,6 +706,76 @@ function collectTabIdentifiersFromText(text: string, sink: Set<string>) {
       sink.add(tabIdentifier);
     }
   }
+}
+
+type TabWorkspacePair = { tabIdentifier: string; workspacePath: string };
+
+function listTabWorkspacePairs(value: unknown): TabWorkspacePair[] {
+  const pairs: TabWorkspacePair[] = [];
+  const seen = new Set<string>();
+
+  function collectFromText(text: string) {
+    const re = /tabIdentifier:\s*([^\s,]+),\s*workspacePath:\s*(.+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      const tabId = m[1]?.trim();
+      const wsPath = m[2]?.trim();
+      if (tabId && wsPath && !seen.has(tabId)) {
+        seen.add(tabId);
+        pairs.push({ tabIdentifier: tabId, workspacePath: wsPath });
+      }
+    }
+  }
+
+  const queue: unknown[] = [value];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    if (typeof current === 'string') {
+      collectFromText(current);
+      continue;
+    }
+    if (typeof current !== 'object') continue;
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+    const record = current as Record<string, unknown>;
+    const tabId =
+      typeof record.tabIdentifier === 'string' ? record.tabIdentifier.trim() : undefined;
+    const wsPath =
+      typeof record.workspacePath === 'string' ? record.workspacePath.trim() : undefined;
+    if (tabId && wsPath && !seen.has(tabId)) {
+      seen.add(tabId);
+      pairs.push({ tabIdentifier: tabId, workspacePath: wsPath });
+    }
+    for (const entry of Object.values(record)) {
+      if (typeof entry === 'string') {
+        collectFromText(entry);
+      } else if (entry && typeof entry === 'object') {
+        queue.push(entry);
+      }
+    }
+  }
+  return pairs;
+}
+
+function matchTabByCwd(pairs: TabWorkspacePair[], cwd: string): string | undefined {
+  const cwdNorm = resolve(cwd);
+  const matched = new Map<string, string>(); // workspacePath → first tabIdentifier
+  for (const { tabIdentifier, workspacePath } of pairs) {
+    const wsDirNorm = resolve(dirname(workspacePath));
+    if (cwdNorm === wsDirNorm || cwdNorm.startsWith(wsDirNorm + '/')) {
+      if (!matched.has(workspacePath)) {
+        matched.set(workspacePath, tabIdentifier);
+      }
+    }
+  }
+  // Only auto-select when exactly one distinct workspace matches
+  if (matched.size === 1) {
+    return [...matched.values()][0];
+  }
+  return undefined;
 }
 
 type NormalizedTestSpecifier = {
@@ -748,7 +833,7 @@ async function resolveTestSpecifiers(
 
     return {
       targetName: targetNames[0],
-      testIdentifier: candidates[0].identifier,
+      testIdentifier: entry.testIdentifier,
     };
   });
 }
@@ -830,6 +915,12 @@ function identifierLookupKeys(identifier: string): string[] {
     keys.add(trimmed.slice(0, -2));
   } else if (!trimmed.endsWith(')')) {
     keys.add(`${trimmed}()`);
+  }
+  // Also index by class-name prefix so bare class names can resolve targets.
+  // e.g. "BookmarkSyncIntegrationTests/testFoo()" also indexes "BookmarkSyncIntegrationTests"
+  const slash = trimmed.indexOf('/');
+  if (slash > 0) {
+    keys.add(trimmed.slice(0, slash));
   }
   return [...keys];
 }

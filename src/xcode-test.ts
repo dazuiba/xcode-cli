@@ -62,9 +62,20 @@ export function parseTestSpecifier(input: string, defaultTargetName?: string): P
     };
   }
 
-  throw new Error(
-    `Invalid test specifier '${input}'. Expected formats: Target::Class/test(), Target/Class/test(), Class#test`,
-  );
+  // Reject values that look like malformed explicit specifiers (e.g. "Target::")
+  if (value.includes('::')) {
+    throw new Error(
+      `Invalid test specifier '${input}'. Expected formats: Target::Class/test(), Target/Class/test(), Class#test, ClassName`,
+    );
+  }
+
+  // Bare identifier (e.g. class name "BookmarkSyncIntegrationTests") —
+  // treat as testIdentifier and let target resolution find the right target.
+  return {
+    source: input,
+    targetName: normalizeTarget(defaultTargetName),
+    testIdentifier: value,
+  };
 }
 
 function parseExplicitTargetAndIdentifier(

@@ -35,8 +35,27 @@ test('parseTestSpecifier parses Class/test identifier without explicit target', 
   });
 });
 
+test('parseTestSpecifier parses bare class name for catalog resolution', () => {
+  const parsed = parseTestSpecifier('BookmarkSyncIntegrationTests');
+  assert.deepEqual(parsed, {
+    source: 'BookmarkSyncIntegrationTests',
+    targetName: undefined,
+    testIdentifier: 'BookmarkSyncIntegrationTests',
+  });
+});
+
+test('parseTestSpecifier parses bare class name with default target', () => {
+  const parsed = parseTestSpecifier('BookmarkSyncIntegrationTests', 'MapClientTests');
+  assert.deepEqual(parsed, {
+    source: 'BookmarkSyncIntegrationTests',
+    targetName: 'MapClientTests',
+    testIdentifier: 'BookmarkSyncIntegrationTests',
+  });
+});
+
 test('parseTestSpecifier throws for invalid formats', () => {
-  assert.throws(() => parseTestSpecifier('JustATarget'), /Invalid test specifier/);
+  assert.throws(() => parseTestSpecifier(''), /Invalid test specifier/);
+  assert.throws(() => parseTestSpecifier('  '), /Invalid test specifier/);
   assert.throws(() => parseTestSpecifier('/testOnly()'), /Invalid test specifier/);
   assert.throws(() => parseTestSpecifier('Target::'), /Invalid test specifier/);
 });

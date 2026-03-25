@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import {
+  CallToolResultSchema,
   CallToolRequestSchema,
   isInitializeRequest,
   ListToolsRequestSchema,
@@ -297,6 +298,13 @@ function createSessionServer(state: UpstreamState): Server {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const client = getUpstreamClient(state);
     const params = await normalizeRunSomeTestsCall(request.params, client);
+    if (params.name === 'RunSomeTests') {
+      const result = await client.request(
+        { method: 'tools/call', params },
+        CallToolResultSchema,
+      );
+      return normalizeRunSomeTestsResult(result);
+    }
     return await client.callTool(params);
   });
 
@@ -547,7 +555,57 @@ function identifierLookupKeys(identifier: string): string[] {
   } else if (!trimmed.endsWith(')')) {
     keys.add(`${trimmed}()`);
   }
+  const slash = trimmed.indexOf('/');
+  if (slash > 0) {
+    keys.add(trimmed.slice(0, slash));
+  }
   return [...keys];
+}
+
+function normalizeRunSomeTestsResult(
+  result: Awaited<ReturnType<Client['callTool']>>,
+): Awaited<ReturnType<Client['callTool']>> {
+  const structured =
+    result.structuredContent && typeof result.structuredContent === 'object'
+      ? normalizeRunSomeTestsPayload(result.structuredContent)
+      : result.structuredContent;
+
+  return structured ? { ...result, structuredContent: structured } : result;
+}
+
+export function normalizeRunSomeTestsPayload(value: Record<string, unknown>): Record<string, unknown> {
+  const results = Array.isArray(value.results)
+    ? value.results.map((entry) => normalizeRunSomeTestsEntry(entry))
+    : value.results;
+  if (results === value.results) {
+    return value;
+  }
+  return {
+    ...value,
+    results,
+  };
+}
+
+function normalizeRunSomeTestsEntry(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+
+  const entry = value as Record<string, unknown>;
+  const errorMessages = Array.isArray(entry.errorMessages)
+    ? entry.errorMessages.filter((item): item is string => typeof item === 'string')
+    : undefined;
+  const errors = Array.isArray(entry.errors)
+    ? entry.errors.filter((item): item is string => typeof item === 'string')
+    : undefined;
+
+  if (errors) {
+    return errorMessages ? entry : { ...entry, errorMessages: errors };
+  }
+  if (errorMessages) {
+    return { ...entry, errors: errorMessages };
+  }
+  return { ...entry, errors: [], errorMessages: [] };
 }
 
 function normalizeString(value: unknown): string | undefined {
