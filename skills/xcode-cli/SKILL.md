@@ -19,7 +19,7 @@ Interact with Xcode through the `xcode-cli` CLI backed by the Xcode MCP bridge.
 
 ## Commands
 
-All commands: `xcode-cli <cmd> [args]`. **Always use `--tab <tabIdentifier>`** — run `xcode-cli windows` first to get the tabIdentifier, then pass it to every subsequent command. Add `--json` for JSON output.
+All commands: `xcode-cli <cmd> [args]`. When run from a project directory the matching Xcode tab is auto-selected. Use `--tab <tabIdentifier>` to override, or run `xcode-cli windows` to list available tabs. Add `--json` for JSON output.
 
 | Command | Usage | Notes |
 |---------|-------|-------|

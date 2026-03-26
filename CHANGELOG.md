@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 – 2026-03-25 – feat: auto-select tab by working directory
+
+### Added
+- Tab auto-matching: when run from a project directory, automatically selects the Xcode tab whose `workspacePath` is in the current directory — no need to run `xcode-cli windows` first
+- `--tab` is now optional in most workflows; just `cd` into the project and run commands directly
+
+### Changed
+- Updated help text, SKILL.md, and README to reflect the new auto-match behavior
+
+---
+
 ## 1.0.12 – 2026-03-25 – fix: `snippet` command now passes required `purpose` parameter
 
 ### Fixed

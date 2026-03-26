@@ -62,9 +62,10 @@ Click "Allow" when macOS asks for Xcode permission.
 ### Verify
 
 ```bash
-# Make sure Xcode is open with a project
-xcode-cli windows
-xcode-cli build
+# Make sure Xcode is open with a project, then run from the project directory
+cd ~/MyProject
+xcode-cli build        # auto-selects the matching Xcode tab
+xcode-cli windows      # or list tabs explicitly
 ```
 
 ## AI Agent Integration

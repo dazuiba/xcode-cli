@@ -1,0 +1,28 @@
+name: DemoProj
+options:
+  bundleIdPrefix: com.demo
+
+targets:
+  DemoProj:
+    type: application
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources: [Sources/DemoProj]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.demo.DemoProj
+
+  DemoProjTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "13.0"
+    sources: [Sources/DemoProjTests]
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.demo.DemoProjTests
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""
+    dependencies:
+      - target: DemoProj
